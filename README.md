@@ -1,2 +1,2 @@
 # CLIGames
-Lightweight multiplayer games displayed to the command line interface.
+Lightweight multiplayer games which display to the command line interface.
