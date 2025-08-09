@@ -1,10 +1,36 @@
+import re
 import shutil
-from typing import List, Tuple
+from enum import Enum
+from typing import List, Tuple, Optional
+
+class Color(Enum):
+    """ANSI color codes"""
+    BLACK = '\033[90m'
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+
+    # Normal intensity versions
+    DARK_RED = '\033[31m'
+    DARK_GREEN = '\033[32m'
+    DARK_YELLOW = '\033[33m'
+    DARK_BLUE = '\033[34m'
+
+    # Special color codes
+    RESET = '\033[0m'
 
 class Display:
+    """Terminal display manager with buffering support"""
+
     # ANSI escape codes
     CLEAR_SCREEN = '\033[2J'
     CURSOR_HOME = '\033[H'
+
+    ANSI_PATTERN = re.compile(r'\033\[[0-9;]*m')
 
     def __init__(self, *, immediate_flush: bool = False):
         # Get terminal dimensions
@@ -45,6 +71,10 @@ class Display:
 
         Raises:
             ValueError: If coordinates are out of terminal bounds
+
+        Note:
+            Truncation may break ANSI color codes. Avoid printing colored
+            text near the right edge of the terminal.
         """
 
         # Check bounds
@@ -59,6 +89,36 @@ class Display:
             print(f"{self._move_cursor(x, y)}{text}", end='', flush=True)
         else:
             self.frame_buffer.append((x, y, text))
+
+    def colored_text(self, text: str, color: Color) -> str:
+        """Returns text with ANSI color codes.
+
+        Args:
+            text: Text to colorize
+            color: Color name (e.g. RED, GREEN, BLUE)
+
+        Returns:
+            Text with appropriate coloring
+        """
+
+        # Clean any color codes
+        clean_text = self.ANSI_PATTERN.sub('', text)
+
+        return f"{color.value}{clean_text}{Color.RESET.value}"
+
+    def center_text(self, text: str, y: Optional[int] = None) -> None:
+        """Print text centered on the given row.
+
+        Args:
+            text: Text to center
+            y: Row position (1-indexed). If None, centers vertically
+        """
+        if y is None:
+            y = self.height // 2
+
+        visible_length = len(self.ANSI_PATTERN.sub('', text))
+        x = (self.width - visible_length) // 2 + 1
+        self.print_at(max(1, x), y, text)
 
     def flush(self) -> None:
         if not self.frame_buffer:
